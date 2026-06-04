@@ -1,0 +1,13 @@
+
+> jarvis@0.1.0 dev
+> next dev
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3000
+
+ ✓ Starting...
+ ✓ Ready in 1806ms
+ ○ Compiling / ...
+ ✓ Compiled / in 10.7s (1559 modules)
+ GET / 200 in 11567ms
+ ✓ Compiled in 1039ms (750 modules)
