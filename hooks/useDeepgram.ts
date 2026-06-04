@@ -63,7 +63,14 @@ export function useDeepgram(onSilenceFinalize: (finalTranscript: string) => void
         throw new Error('Browser does not support audio recording');
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Added specific constraints for better iOS compatibility
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        }
+      });
       const mediaRecorder = new MediaRecorder(stream);
       microphoneRef.current = mediaRecorder;
 
@@ -81,6 +88,9 @@ export function useDeepgram(onSilenceFinalize: (finalTranscript: string) => void
         smart_format: true,
         interim_results: true,
       });
+
+      // To prevent websocket abrupt closures
+      liveClient.keepAlive();
 
       deepgramClientRef.current = liveClient;
 

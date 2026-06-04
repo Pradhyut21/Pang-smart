@@ -40,7 +40,9 @@ export async function POST(req: Request) {
     const responseText = message.content[0]?.type === 'text' ? message.content[0].text : '';
 
     try {
-      const parsedIntent = JSON.parse(responseText);
+      // Strip out any potential markdown code blocks (e.g., ```json ... ```)
+      const cleaned = responseText.replace(/```json|```/gi, "").trim();
+      const parsedIntent = JSON.parse(cleaned);
       return NextResponse.json(parsedIntent);
     } catch (parseError) {
       console.error('Failed to parse Claude JSON response:', responseText, parseError);

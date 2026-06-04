@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@deepgram/sdk';
 
 export async function GET() {
   const deepgramApiKey = process.env.DEEPGRAM_API_KEY;
@@ -12,32 +13,55 @@ export async function GET() {
   }
 
   try {
-    const response = await fetch('https://api.deepgram.com/v1/projects/*/keys', {
-      method: 'POST',
-      headers: {
-        Authorization: `Token ${deepgramApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        comment: 'Temporary STT Token',
-        scopes: ['usage:write'],
-        tags: ['jarvis'],
-        time_to_live_in_seconds: 60, // Short-lived token
-      }),
-    });
+    const deepgram = createClient(deepgramApiKey);
 
-    if (!response.ok) {
-      // In case we don't have project ID or permissions to create a key, fallback to returning the main API key
-      // ONLY DO THIS FOR PROTOTYPE/PHASE 1 - In production, use properly scoped temporary keys
-      console.warn("Failed to generate temporary Deepgram token, falling back to DEEPGRAM_API_KEY for Phase 1. Status:", response.status);
-      return NextResponse.json({ key: deepgramApiKey });
+    // Attempt to get project ID.  A user's token might be tied to a specific project.
+    // We try to list projects and use the first one.
+    const { result: projectsResult, error: projectsError } = await deepgram.manage.getProjects();
+
+    if (projectsError) {
+      console.error('Failed to get Deepgram projects:', projectsError);
+      return NextResponse.json(
+        { error: 'Failed to access Deepgram projects' },
+        { status: 500 }
+      );
     }
 
-    const data = await response.json();
-    return NextResponse.json({ key: data.key });
+    const project = projectsResult?.projects?.[0];
+
+    if (!project) {
+        return NextResponse.json(
+          { error: 'No Deepgram projects found' },
+          { status: 500 }
+        );
+    }
+
+    // Generate a temporary key
+    const { result: keyResult, error: keyError } = await deepgram.manage.createProjectKey(
+      project.project_id,
+      {
+        comment: 'Temporary Jarvis Client Token',
+        scopes: ['usage:write'],
+        tags: ['jarvis-client'],
+        time_to_live_in_seconds: 60,
+      }
+    );
+
+    if (keyError) {
+       console.error("Failed to generate temporary Deepgram token:", keyError);
+       return NextResponse.json(
+         { error: 'Failed to generate token' },
+         { status: 500 }
+       );
+    }
+
+    return NextResponse.json({ key: keyResult.key });
+
   } catch (error) {
     console.error('Error generating Deepgram token:', error);
-    // Fallback to main API key for Phase 1 if API call fails
-    return NextResponse.json({ key: deepgramApiKey });
+    return NextResponse.json(
+      { error: 'Internal server error generating token' },
+      { status: 500 }
+    );
   }
 }
